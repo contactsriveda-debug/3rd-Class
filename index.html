@@ -2081,6 +2081,10 @@
 </footer>
     <script>
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzJXeya9KkRPQ8k_F1xMr9ITXqUrx2Pe3qkh3eCUWozgmcM8Vctq0gQwGbY_ljXFmU/exec";
+    const LOCK_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="inline-block mr-1" viewBox="0 0 16 16" style="margin-bottom: 2px;">
+            <path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM5 8h6a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/>
+        </svg>`;
+    const TAKE_TEST_TEXT = "Take Test";
     const loginScreen = document.getElementById('loginScreen');
     const dashboardContent = document.getElementById('dashboardContent');
     const loginForm = document.getElementById('loginForm');
@@ -2254,6 +2258,7 @@
         loginForm.reset();
         statusMessage.classList.add('hidden');
         studentClass = 0; 
+        updatePremiumButtonsVisuals(false);
     }
     function checkLoginStatus() {
         if (sessionStorage.getItem('isLoggedIn') === 'true') {
@@ -2284,6 +2289,7 @@
         const subjectTests = sessionStorage.getItem('subjectTests') || 'N/A';
         const managerName = sessionStorage.getItem('managerName') || 'Sri Veda Tc'; 
         const directContact = sessionStorage.getItem('directContact') || '8985170500'; 
+        const isPremium = sessionStorage.getItem('isPremium') === 'true';
         const statLogins = document.getElementById('statLogins');
         const statTimeSpent = document.getElementById('statTimeSpent');
         const statGeneralTests = document.getElementById('statGeneralTests');
@@ -2367,6 +2373,7 @@
         subscriptionBadge.textContent = displayText;
 
         setupSubjectButtons();
+        updatePremiumButtonsVisuals(isPremium);
         animateTCRing();
         loginScreen.classList.add('hidden');
         dashboardContent.classList.remove('hidden');
@@ -2376,72 +2383,32 @@
              studentSubjectTestsSection.classList.remove('hidden');
         }
     }
-    function handleTestClick(testId) {
-        const classUrls = urlMap[testId];
-        const targetUrl = (classUrls && classUrls[studentClass]) 
-                            ? classUrls[studentClass] 
-                            : 'locked'; 
-        const button = document.getElementById(`btn_${testId}`);
-        if (targetUrl === 'locked' || targetUrl === '') {
-            showServerMaintenance(`This subject is not available for your current class (${studentClass}th Class).`);
-            return;
-        }
-        const newWindow = window.open(targetUrl, '_blank'); 
-        if (newWindow) {
-            newWindow.focus();
-        } else {
-             showServerMaintenance('Pop-ups blocked! Please allow pop-ups to start the test.');
-        }
-        if (button) button.animate([{transform:'scale(1)'},{transform:'scale(1.04)'},{transform:'scale(1)'}],{duration:360});
-    }
+    
     function setupSubjectButtons() {
-        const testIds = Object.keys(urlMap); 
-        testIds.forEach(testId => {
-            const button = document.getElementById(`btn_${testId}`);
-            const listItem = document.getElementById(`item_${testId}`);
-            if (!button || !listItem) return;
-            const targetUrl = (urlMap[testId] && urlMap[testId][studentClass]) ? urlMap[testId][studentClass] : 'locked';
-            listItem.classList.remove('hidden'); 
-            if (targetUrl === '') {
-                 if (studentClass >= 6) {
-                    listItem.classList.add('hidden'); 
-                 } else {
-                    listItem.classList.add('hidden'); 
-                 }
-            } else if (targetUrl === 'locked') {
-                if (studentClass >= 6) {
-                    listItem.classList.add('hidden'); 
-                } else {
-                    button.classList.add('locked');
-                    button.setAttribute('onclick', `showServerMaintenance('This subject is not available for your current class (${studentClass}th Class).');`);
-                    button.innerHTML = `<svg class="lock-icon" viewBox="0 0 24 24"><path d="M12 17c1.1 0 2-.9 2-2s-.9-2-2-2s-2 .9-2 2s.9 2 2 2zm6-9h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0 1.1-.9-2-2-2zM8.9 6c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1v2H8.9V6zM18 20H6V10h12v10z"/></svg> <span class="btn-text">Take Test</span>`;
-                }
-            } else {
-                button.classList.remove('locked');
-                listItem.classList.remove('hidden');
-                button.setAttribute('onclick', `handleTestClick('${testId}')`);
-                button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M10 17l5-5-5-5v10z"/></svg> <span class="btn-text">Take Test</span>`;
-            }
-        });
     }
-    function animateTCRing(){
-      const target = 29;
-      const liveBar = document.getElementById('tcLiveBar'); 
-      const pctText = document.getElementById('tcPercent');
-      
-      let current = 0;
-      const step = Math.max(1, Math.round(target / 60));
-      if (window.tcLiveInterval) clearInterval(window.tcLiveInterval); 
 
-      window.tcLiveInterval = setInterval(()=>{
-        current += step;
-        if(current >= target){ current = target; clearInterval(window.tcLiveInterval); }
-        liveBar.style.width = current + '%';
-        pctText.textContent = current + '%';
-      },16);
+    function animateTCRing() {
+        const tcPercentEl = document.getElementById('tcPercent');
+        const tcLiveBarEl = document.getElementById('tcLiveBar');
+        
+        if (tcPercentEl && tcLiveBarEl) {
+            let percentText = tcPercentEl.textContent || '0%';
+            let percent = parseInt(percentText, 10);
+            
+            if (isNaN(percent)) {
+                percent = 0;
+            }
+            
+            percent = Math.max(0, Math.min(100, percent));
+            
+            setTimeout(() => {
+                tcLiveBarEl.style.width = percent + '%';
+            }, 100);
+        } else {
+            console.warn('TC Ring elements not found.');
+        }
     }
-    
-    
+
     const externalUrlMap = {
     };
     
@@ -2567,6 +2534,45 @@
             title: 'Logical Reasoning – Puzzles and Number Series' 
         }
     }; 
+
+    function handleTestClick(testId) {
+        const isPremium = sessionStorage.getItem('isPremium') === 'true';
+        if (!isPremium) {
+            showServerMaintenance('This is a premium feature. Please upgrade your plan to access.');
+            return;
+        }
+
+        if (urlMap[testId] && urlMap[testId][studentClass]) {
+            const url = urlMap[testId][studentClass];
+            if (url) {
+                window.open(url, '_blank');
+            } else {
+                showServerMaintenance('This test is not yet available for your class.');
+            }
+        } else if (externalUrlMap[testId]) { 
+             const url = externalUrlMap[testId];
+             window.open(url, '_blank');
+        } else {
+            showServerMaintenance('This test is currently unavailable. Please check back later.');
+            console.warn(`No URL found for testId: ${testId} and class: ${studentClass}`);
+        }
+    }
+
+    function updatePremiumButtonsVisuals(isPremium) {
+        const premiumButtons = document.querySelectorAll('.subject-tests .sub-topic-item .btn-test');
+        
+        premiumButtons.forEach(button => {
+            if (isPremium) {
+                button.classList.remove('locked');
+                button.disabled = false;
+                button.innerHTML = TAKE_TEST_TEXT;
+            } else {
+                button.classList.add('locked');
+                button.disabled = true;
+                button.innerHTML = `${LOCK_ICON_SVG} ${TAKE_TEST_TEXT}`;
+            }
+        });
+    }
 
     function handlePremiumTestClick(testId) {
         const isPremium = sessionStorage.getItem('isPremium') === 'true';
